@@ -5,49 +5,42 @@
 {% endblock %}
 
 {% block content %}
-    <div class="container py-4">
-        <!-- Back button -->
-        <div class="mb-4">
-            <a href="{% url 'jobs:job_list_view' %}" class="text-decoration-none">
-                <i class="bi bi-arrow-left"></i> Back to Jobs
-            </a>
-        </div>
-        
-        <div class="row justify-content-center align-items-start">
-            <!-- Left Column: Title & Description -->
-            <div class="col-lg-8 col-md-7 col-12 mb-3">
-                <div class="card shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-4">
-                            <h2 class="card-title mb-0">{{ job.job_title }}</h2>
-                            <span class="badge bg-success bg-opacity-10 text-success">
-                                <i class="bi bi-cash me-1"></i>${{ job.min_offer }} - ${{ job.max_offer }}
-                            </span>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <p class="text-muted mb-2">
-                                <i class="bi bi-geo-alt me-2"></i>{{ job.location }}
-                            </p>
-                            <p class="text-muted mb-2">
-                                <i class="bi bi-person me-2"></i>Posted by: {{ job.user.username }}
-                            </p>
-                        </div>
+<div class="container py-4">
 
-                        <h5 class="card-subtitle mb-3">Description</h5>
-                        <div class="job-description">
-                            {{ job.job_description|linebreaks }}
-                        </div>
+    <!-- Back button -->
+    <div class="mb-4">
+        <a href="{% url 'jobs:job_list_view' %}" class="text-decoration-none">
+            <i class="bi bi-arrow-left"></i> Back to Jobs
+        </a>
+    </div>
+
+    <div class="row justify-content-center align-items-start">
+
+        <!-- Left Column: Job Info -->
+        <div class="col-lg-8 col-md-7 col-12 mb-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-4">
+                        <h2 class="card-title mb-0">{{ job.job_title }}</h2>
+                        <span class="badge bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-cash me-1"></i>${{ job.min_offer }} - ${{ job.max_offer }}
+                        </span>
                     </div>
+                    <p class="text-muted mb-2"><i class="bi bi-geo-alt me-2"></i>{{ job.location }}</p>
+                    <p class="text-muted mb-2"><i class="bi bi-person me-2"></i>Posted by: {{ job.user.username }}</p>
+                    <h5 class="card-subtitle mb-3">Description</h5>
+                    <div class="job-description">{{ job.job_description|linebreaks }}</div>
                 </div>
             </div>
-            
-            <!-- Right Column: Details & Actions -->
-            <div class="col-lg-4 col-md-5 col-12">
-                <div class="card shadow-sm">
-                    <div class="card-body">
+        </div>
 
-                {% if request.user.is_staff %}
+        <!-- Right Column: Actions -->
+        <div class="col-lg-4 col-md-5 col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+
+                {% if request.user == job.user %}
+                    <!-- Job Poster Actions -->
                     <h5 class="card-title mb-3">Admin Actions</h5>
                     <div class="d-grid gap-2">
                         <a href="{% url 'jobs:job_update_view' job.pk %}" class="btn btn-outline-primary">
@@ -58,27 +51,53 @@
                         </a>
                     </div>
                 {% else %}
+                    <!-- Applicant Actions -->
                     <h5 class="card-title mb-3">Apply for this Position</h5>
-                    {% if user.is_authenticated %}
-                        <form method="post" action="{% url 'jobs:job_apply' job.pk %}" enctype="multipart/form-data">
+
+                    {% if user_application %}
+                        {% if user_application.status == 'pending' %}
+                            <div class="alert alert-info">
+                                You have already applied for this job. Status: Pending
+                            </div>
+                        {% elif user_application.status == 'rejected' %}
+                            <form method="post" enctype="multipart/form-data" action="{% url 'jobs:job_apply' job.pk %}">
                                 {% csrf_token %}
                                 <div class="mb-3">
-                                    <label for="resume" class="form-label">Upload Resume</label>
-                                    <input type="file" name="resume" id="resume" class="form-control" accept=".pdf,.doc,.docx" required>
-                                    <div class="form-text">Accepted formats: PDF, DOC, DOCX</div>
+                                    <label for="resume" class="form-label">Upload Resume (Re-apply)</label>
+                                    <input type="file" name="resume" id="resume" class="form-control" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary w-100">
                                     <i class="bi bi-send"></i> Submit Application
                                 </button>
                             </form>
+                        {% else %}
+                            <div class="alert alert-success">
+                                Your application has been accepted!
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <!-- User has not applied -->
+                        <form method="post" enctype="multipart/form-data" action="{% url 'jobs:job_apply' job.pk %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="resume" class="form-label">Upload Resume</label>
+                                <input type="file" name="resume" id="resume" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-send"></i> Submit Application
+                            </button>
+                        </form>
                     {% endif %}
                 {% endif %}
-                    </div>
+
                 </div>
             </div>
         </div>
 
-        {% if request.user.is_staff %}
+    </div>
+
+    <!-- Applicants Table (for job poster) -->
+    {% if request.user == job.user %}
         <div class="mt-4">
             <div class="card shadow-sm">
                 <div class="card-body">
@@ -92,7 +111,8 @@
                                         <th>Username</th>
                                         <th>Email</th>
                                         <th>Resume</th>
-                                        <th>Applied Date</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -106,33 +126,33 @@
                                                     <i class="bi bi-file-earmark-text me-1"></i>View Resume
                                                 </a>
                                             </td>
-                                            <td>{{ applicant.applied_date|date:'Y-m-d H:i' }}</td>
+                                            <td>{{ applicant.status|capfirst }}</td>
+                                            <td>
+                                                {% if applicant.status != 'rejected' %}
+                                                    <a href="{% url 'jobs:job_reject_view' applicant.id %}" class="btn btn-sm btn-outline-danger">
+                                                        Reject
+                                                    </a>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                     {% else %}
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>No applicants yet.
-                        </div>
+                        <div class="alert alert-info">No applicants yet.</div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        {% endif %}
-    </div>
+    {% endif %}
+
+</div>
 
 <style>
-.job-description {
-    line-height: 1.6;
-    white-space: pre-line;
-}
-.card {
-    border: none;
-}
-.table {
-    margin-bottom: 0;
-}
+.job-description { line-height: 1.6; white-space: pre-line; }
+.card { border: none; }
+.table { margin-bottom: 0; }
 </style>
+
 {% endblock %}
